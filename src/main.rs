@@ -1,64 +1,32 @@
-use std::default;
-
 use petgraph::{
-    adj::NodeIndex,
-    graph::{Graph, Node},
-    matrix_graph::MatrixGraph,
+    algo,
+    adj,
+    graph::{Graph, NodeIndex},
+    stable_graph::IndexType,
     Undirected,
 };
-enum Nodes {
-    one = 1,
-    two,
-    three,
-    four,
-    five,
-}
+
+mod adj_constructor;
+mod degrees;
+mod incidence_constructor;
 
 fn main() {
-    let mut g = Graph::<String, i32, Undirected>::new_undirected();
+    let mut g = Graph::<String, i32>::new();
 
-    let a_matrix: [[i32; 5]; 5] = [
-        [1, 1, 0, 1, 1],
-        [1, 1, 1, 1, 1],
-        [0, 1, 1, 1, 0],
-        [1, 1, 1, 1, 1],
-        [1, 1, 0, 1, 1],
-    ];
+    incidence_constructor::create_from_inc_dir(&mut g);
 
-    let in_matrix: [[i32; 7]; 5] = [
-        [1, 0, 0, 0, 0, 0, 0],
-        [1, 1, 0, 1, 0, 1, 1],
-        [0, 1, 1, 0, 0, 0, 0],
-        [0, 0, 1, 1, 1, 0, 0],
-        [0, 0, 0, 0, 1, 1, 1],
-    ];
+    let ways = algo::all_simple_paths::<Vec<_>, _>(&graph, a, d, 0, None)
+  .collect::<Vec<_>>();
 
-    let mut j_count: i32 = -1;
-    for i in 0..a_matrix.len() {
-        for j in 0..a_matrix[i].len() {
-            if a_matrix[i][j] != 1 {
-                continue;
-            }
-            println!("{:?}", g);
-
-            if i
-            let node_1 = g.add_node(format!("{}", i + 1));
-            let mut node_2 = node_1;
-
-            if j as i32 <= j_count || j == i{
-                node_2 = g
-                    .node_indices()
-                    .find(|i| g[*i] == format!("{}", j + 1))
-                    .unwrap();
-                //println!("{}", node_1)
-            } else {
-                node_2 = g.add_node(format!("{}", j + 1));
-            }
-
-            g.add_edge(node_1, node_2, 1);
-            j_count += 1;
+    for i in 0..g.node_count() {
+        let node_1 = g.node_indices().find(|n| g[*n] == format!("{}", i + 1)).unwrap();
+        for j in 0..g.node_count() {
+            let node_2 = g.node_indices().find(|n| g[*n] == format!("{}", j + 1)).unwrap();
+            println!("{:?}", g.edges_connecting(node_1, node_2));
+            break;
         }
+        break;
     }
 
-    println!("{:?}", g);
+    //println!("{:?}", g);
 }
