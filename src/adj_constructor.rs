@@ -3,18 +3,30 @@ use petgraph::{
     Undirected,
 };
 
-pub fn create_from_adj_dir(g: &mut Graph<String, i32>) {
-    let a_matrix: [[i32; 5]; 5] = [
+pub fn adj_matrix_dir() -> [[i32; 5]; 5] {
+    [
         [1, 1, 0, 0, 0],
         [0, 1, 1, 0, 1],
         [0, 0, 1, 1, 0],
         [0, 1, 0, 1, 1],
         [1, 0, 0, 0, 1],
-    ];
+    ]
+}
 
-    for i in 0..a_matrix.len() {
-        for j in 0..a_matrix[i].len() {
-            if a_matrix[i][j] != 1 {
+pub fn adj_matrix() -> [[i32; 5]; 5] {
+    [
+        [1, 1, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+        [0, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1],
+        [1, 1, 0, 1, 1],
+    ]
+}
+
+pub fn create_from_adj_dir(g: &mut Graph<String, i32>, a_matrix_dir: [[i32; 5]; 5]) {
+    for i in 0..a_matrix_dir.len() {
+        for j in 0..a_matrix_dir[i].len() {
+            if a_matrix_dir[i][j] != 1 {
                 continue;
             }
 
@@ -42,15 +54,7 @@ pub fn create_from_adj_dir(g: &mut Graph<String, i32>) {
     }
 }
 
-pub fn create_from_adj(g: &mut Graph<String, i32, Undirected>) {
-    let a_matrix: [[i32; 5]; 5] = [
-        [1, 1, 0, 0, 1],
-        [1, 1, 1, 1, 1],
-        [0, 1, 1, 1, 0],
-        [0, 1, 1, 1, 1],
-        [1, 1, 0, 1, 1],
-    ];
-
+pub fn create_from_adj(g: &mut Graph<String, i32, Undirected>, a_matrix: [[i32; 5]; 5]) {
     for i in 0..a_matrix.len() {
         for j in i..a_matrix[i].len() {
             if a_matrix[i][j] != 1 {

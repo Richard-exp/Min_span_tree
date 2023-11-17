@@ -3,8 +3,32 @@ use petgraph::{
     Undirected,
 };
 
-pub fn create_from_inc_dir(g: &mut Graph<String, i32>) {
-    let in_matrix: [[i32; 5]; 7] = [
+pub fn weighted_in_matrix() -> [[i32; 5]; 7] {
+    [
+        [1, 1, 0, 0, 0],
+        [0, 1, 2, 0, 0],
+        [0, 0, 1, 3, 0],
+        [0, 1, 0, 2, 0],
+        [1, 0, 0, 3, 0],
+        [0, 0, 0, 1, 2],
+        [1, 0, 0, 0, 1],
+    ]
+}
+
+pub fn in_matrix() -> [[i32; 5]; 7] {
+    [
+        [1, 1, 0, 0, 0],
+        [0, 1, 1, 0, 0],
+        [0, 0, 1, 1, 0],
+        [0, 1, 0, 1, 0],
+        [0, 0, 0, 1, 1],
+        [0, 1, 0, 0, 1],
+        [1, 0, 0, 0, 1],
+    ]
+}
+
+pub fn in_matrix_dir() -> [[i32; 5]; 7] {
+    [
         [1, -1, 0, 0, 0],
         [0, 1, -1, 0, 0],
         [0, 0, 1, -1, 0],
@@ -12,8 +36,10 @@ pub fn create_from_inc_dir(g: &mut Graph<String, i32>) {
         [0, 0, 0, 1, -1],
         [0, 1, 0, 0, -1],
         [-1, 0, 0, 0, 1],
-    ];
+    ]
+}
 
+pub fn create_from_inc_dir(g: &mut Graph<String, i32>, in_matrix: [[i32; 5]; 7]) {
     for edge in 0..in_matrix.len() {
         let mut node_1 = NodeIndex::new(0);
         let mut node_2 = NodeIndex::new(0);
@@ -40,22 +66,12 @@ pub fn create_from_inc_dir(g: &mut Graph<String, i32>) {
     }
 }
 
-pub fn create_from_inc(g: &mut Graph<String, i32, Undirected>) {
-    let in_matrix: [[i32; 5]; 7] = [
-        [1, 1, 0, 0, 0],
-        [0, 1, 1, 0, 0],
-        [0, 0, 1, 1, 0],
-        [0, 1, 0, 1, 0],
-        [0, 0, 0, 1, 1],
-        [0, 1, 0, 0, 1],
-        [0, 1, 0, 0, 1],
-    ];
-
+pub fn create_from_inc(g: &mut Graph<String, i32, Undirected>, in_matrix: [[i32; 5]; 7]) {
     for edge in 0..in_matrix.len() {
         let mut node_1 = NodeIndex::new(usize::MAX);
         let mut node_2: NodeIndex;
         for node in 0..in_matrix[edge].len() {
-            if in_matrix[edge][node] != 1 {
+            if in_matrix[edge][node] == 0 {
                 continue;
             }
 
@@ -74,7 +90,7 @@ pub fn create_from_inc(g: &mut Graph<String, i32, Undirected>) {
                 node_2 = g.add_node(format!("{}", node + 1));
             }
 
-            g.add_edge(node_1, node_2, 1);
+            g.add_edge(node_1, node_2, in_matrix[edge][node]);
         }
     }
 }
