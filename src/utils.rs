@@ -169,7 +169,7 @@ pub fn calc_out_degrees_dir(g: &Graph<String, i32>) {
     println!("Total nodes out-degrees(+): {}\n", degrees);
 }
 
-pub fn calc_degrees(g: &Graph<String, i32, Undirected>) {
+pub fn calc_degrees(g: &Graph<String, f64, Undirected>) {
     let mut degrees = 0;
     for i in 0..g.node_count() {
         let node = g
