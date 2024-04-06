@@ -10,8 +10,11 @@ use crate::incidence_constructor;
 pub struct Probability {
     pub forward_prop: Graph<String, f64, Undirected>,
     pub backward_prop: Graph<String, f64, Undirected>,
+    pub h_num: usize,
+    pub h_names: Vec<String>,
 }
 
+#[derive(Clone)]
 pub struct Hypothesis {
     pub name: String,
     pub prob: f64,
@@ -19,333 +22,112 @@ pub struct Hypothesis {
     pub f_cond_prob: f64,
 }
 
-
 impl Probability {
-    pub fn new(forward_prop: Graph<String, f64, Undirected>) -> Self {
+    pub fn new(hypotheses: Vec<Hypothesis>) -> Self {
         Self {
-            forward_prop,
+            forward_prop: Probability::new_forward_tree(hypotheses.clone()),
             backward_prop: Graph::<String, f64, Undirected>::new_undirected(),
+            h_num: hypotheses.len(),
+            h_names: hypotheses.iter().map(|h| h.name.to_owned()).collect(),
         }
     }
 
-    pub fn new_decision_tree(hypotheses: Vec<Hypothesis>) -> Graph<String, f64, Undirected> {
-    
-    let mut d_tree = Graph::<String, f64, Undirected>::new_undirected();
-    let strat_node = d_tree.add_node("Start".into()); //0 index of node is reserved for Start
-    for i in 0..hypotheses.len() {
-        //Creating hypotheses nodes and edges (prob)
-        let h_node = d_tree.add_node(hypotheses[i].name.clone());
-        d_tree.add_edge(strat_node, h_node, hypotheses[i].prob);
-    }
-    for i in 0..hypotheses.len() {
-        //Creating evidence nodes and edges (e_cond_prob)
-        let s_node = d_tree.add_node(format!("{}_Success", hypotheses[i].name));
-        d_tree.add_edge(NodeIndex::new(i + 1), s_node, hypotheses[i].s_cond_prob);
-        let f_node = d_tree.add_node(format!("{}_Failure", hypotheses[i].name));
-        d_tree.add_edge(NodeIndex::new(i + 1), f_node, hypotheses[i].f_cond_prob);
-    }
+    pub fn new_backward_tree(&mut self) {
+        let prob_s = self.find_prob_s();
 
-    for (e, i) in hypotheses.iter().enumerate() {
-        assert_eq!(
-            i.prob,
-            d_tree.edge_weight(EdgeIndex::new(e)).unwrap().clone()
-        );
-    }
-
-   d_tree
-}
-
-
-    pub fn upt_forward_prop_pos(&mut self) {
-        let mut endpoints = self
-            .forward_prop
-            .edge_endpoints((1 - 1).into())
-            .expect("No such edge in forward_prop graph");
-        self.forward_prop.update_edge(
-            endpoints.0,
-            endpoints.1,
-            self.backward_prop
-                .edge_weight((2 - 1).into())
-                .expect("No such edge in forward_prop graph")
-                .clone(),
-        );
-
-        endpoints = self
-            .forward_prop
-            .edge_endpoints((4 - 1).into())
-            .expect("No such edge in forward_prop graph");
-        self.forward_prop.update_edge(
-            endpoints.0,
-            endpoints.1,
-            self.backward_prop
-                .edge_weight((3 - 1).into())
-                .expect("No such edge in forward_prop graph")
-                .clone(),
-        );
-
-        endpoints = self
-            .forward_prop
-            .edge_endpoints((7 - 1).into())
-            .expect("No such edge in forward_prop graph");
-        self.forward_prop.update_edge(
-            endpoints.0,
-            endpoints.1,
-            self.backward_prop
-                .edge_weight((4 - 1).into())
-                .expect("No such edge in forward_prop graph")
-                .clone(),
-        );
-    }
-
-    pub fn upt_forward_prop_neg(&mut self) {
-        let mut endpoints = self
-            .forward_prop
-            .edge_endpoints((1 - 1).into())
-            .expect("No such edge in forward_prop graph");
-        self.forward_prop.update_edge(
-            endpoints.0,
-            endpoints.1,
-            self.backward_prop
-                .edge_weight((6 - 1).into())
-                .expect("No such edge in forward_prop graph")
-                .clone(),
-        );
-
-        endpoints = self
-            .forward_prop
-            .edge_endpoints((4 - 1).into())
-            .expect("No such edge in forward_prop graph");
-        self.forward_prop.update_edge(
-            endpoints.0,
-            endpoints.1,
-            self.backward_prop
-                .edge_weight((7 - 1).into())
-                .expect("No such edge in forward_prop graph")
-                .clone(),
-        );
-
-        endpoints = self
-            .forward_prop
-            .edge_endpoints((7 - 1).into())
-            .expect("No such edge in forward_prop graph");
-        self.forward_prop.update_edge(
-            endpoints.0,
-            endpoints.1,
-            self.backward_prop
-                .edge_weight((8 - 1).into())
-                .expect("No such edge in forward_prop graph")
-                .clone(),
-        );
-    }
-
-    pub fn upt_backward_prop(&mut self) {
-        let mut endpoints = self
-            .backward_prop
-            .edge_endpoints((1 - 1).into())
-            .expect("No such edge in backward_prop graph");
+        let start_node = self.backward_prop.add_node("Start".into()); //0 index of node is reserved for Start
+        let s_node = self.backward_prop.add_node("Success".into());
+        self.backward_prop.add_edge(start_node, s_node, prob_s);
+        let f_node = self.backward_prop.add_node("Failure".into());
         self.backward_prop
-            .update_edge(endpoints.0, endpoints.1, self.find_prob_a().0);
+            .add_edge(start_node, f_node, 1.0 - prob_s);
 
-        endpoints = self
-            .backward_prop
-            .edge_endpoints((5 - 1).into())
-            .expect("No such edge in backward_prop graph");
-        self.backward_prop
-            .update_edge(endpoints.0, endpoints.1, self.find_prob_a().1);
-
-        endpoints = self
-            .backward_prop
-            .edge_endpoints((2 - 1).into())
-            .expect("No such edge in backward_prop graph");
-        self.backward_prop.update_edge(
-            endpoints.0,
-            endpoints.1,
-            (self
+        for (e, i) in ((self.h_num..(self.h_num * 3)).step_by(2)).enumerate() {
+            let h_node = self
+                .backward_prop
+                .add_node(format!("Success_{}", self.h_names[e]));
+            let prob = self
                 .forward_prop
-                .edge_weight((1 - 1).into())
-                .expect("No such edge in forward_prop graph")
-                .clone()
-                * self
-                    .forward_prop
-                    .edge_weight((2 - 1).into())
-                    .expect("No such edge in forward_prop graph")
-                    .clone())
-                / self.find_prob_a().0,
-        );
-
-        endpoints = self
-            .backward_prop
-            .edge_endpoints((3 - 1).into())
-            .expect("No such edge in backward_prop graph");
-        self.backward_prop.update_edge(
-            endpoints.0,
-            endpoints.1,
-            (self
+                .edge_weight(EdgeIndex::new(e))
+                .unwrap()
+                .clone();
+            let cond_prob = self
                 .forward_prop
-                .edge_weight((4 - 1).into())
-                .expect("No such edge in forward_prop graph")
-                .clone()
-                * self
-                    .forward_prop
-                    .edge_weight((5 - 1).into())
-                    .expect("No such edge in forward_prop graph")
-                    .clone())
-                / self.find_prob_a().0,
-        );
+                .edge_weight(EdgeIndex::new(i))
+                .unwrap()
+                .clone();
+            self.backward_prop
+                .add_edge(s_node, h_node, (prob * cond_prob) / prob_s);
+        }
 
-        endpoints = self
-            .backward_prop
-            .edge_endpoints((4 - 1).into())
-            .expect("No such edge in backward_prop graph");
-        self.backward_prop.update_edge(
-            endpoints.0,
-            endpoints.1,
-            (self
+        for (e, i) in ((self.h_num..(self.h_num * 3)).step_by(2)).enumerate() {
+            let h_node = self
+                .backward_prop
+                .add_node(format!("Success_{}", self.h_names[e]));
+            let prob = self
                 .forward_prop
-                .edge_weight((7 - 1).into())
-                .expect("No such edge in forward_prop graph")
-                .clone()
-                * self
-                    .forward_prop
-                    .edge_weight((8 - 1).into())
-                    .expect("No such edge in forward_prop graph")
-                    .clone())
-                / self.find_prob_a().0,
-        );
-
-        endpoints = self
-            .backward_prop
-            .edge_endpoints((6 - 1).into())
-            .expect("No such edge in backward_prop graph");
-        self.backward_prop.update_edge(
-            endpoints.0,
-            endpoints.1,
-            (self
+                .edge_weight(EdgeIndex::new(e))
+                .unwrap()
+                .clone();
+            let cond_prob = self
                 .forward_prop
-                .edge_weight((1 - 1).into())
-                .expect("No such edge in forward_prop graph")
-                .clone()
-                * self
-                    .forward_prop
-                    .edge_weight((3 - 1).into())
-                    .expect("No such edge in forward_prop graph")
-                    .clone())
-                / self.find_prob_a().1,
-        );
-
-        endpoints = self
-            .backward_prop
-            .edge_endpoints((7 - 1).into())
-            .expect("No such edge in backward_prop graph");
-        self.backward_prop.update_edge(
-            endpoints.0,
-            endpoints.1,
-            (self
-                .forward_prop
-                .edge_weight((4 - 1).into())
-                .expect("No such edge in forward_prop graph")
-                .clone()
-                * self
-                    .forward_prop
-                    .edge_weight((6 - 1).into())
-                    .expect("No such edge in forward_prop graph")
-                    .clone())
-                / self.find_prob_a().1,
-        );
-
-        endpoints = self
-            .backward_prop
-            .edge_endpoints((8 - 1).into())
-            .expect("No such edge in backward_prop graph");
-        self.backward_prop.update_edge(
-            endpoints.0,
-            endpoints.1,
-            (self
-                .forward_prop
-                .edge_weight((7 - 1).into())
-                .expect("No such edge in forward_prop graph")
-                .clone()
-                * self
-                    .forward_prop
-                    .edge_weight((9 - 1).into())
-                    .expect("No such edge in forward_prop graph")
-                    .clone())
-                / self.find_prob_a().1,
-        );
+                .edge_weight(EdgeIndex::new(i + 1))
+                .unwrap()
+                .clone();
+            self.backward_prop
+                .add_edge(f_node, h_node, (prob * cond_prob) / (1.0 - prob_s));
+        }
     }
 
-    fn find_prob_h(&self) -> (f64, f64, f64) {
-        let e1 = self
-            .backward_prop
-            .edge_weight((1 - 1).into())
-            .unwrap()
-            .clone();
-        let e2 = self
-            .backward_prop
-            .edge_weight((2 - 1).into())
-            .unwrap()
-            .clone();
-        let e3 = self
-            .backward_prop
-            .edge_weight((3 - 1).into())
-            .unwrap()
-            .clone();
-        let e5 = self
-            .backward_prop
-            .edge_weight((5 - 1).into())
-            .unwrap()
-            .clone();
-        let e6 = self
-            .backward_prop
-            .edge_weight((6 - 1).into())
-            .unwrap()
-            .clone();
-        let e7 = self
-            .backward_prop
-            .edge_weight((7 - 1).into())
-            .unwrap()
-            .clone();
+    fn find_prob_s(&self) -> f64 {
+        let mut prob_s = 0.0;
+        for (e, i) in ((self.h_num..(self.h_num * 3)).step_by(2)).enumerate() {
+            let prop = self
+                .forward_prop
+                .edge_weight(EdgeIndex::new(e))
+                .unwrap()
+                .clone();
+            let cond_prop = self
+                .forward_prop
+                .edge_weight(EdgeIndex::new(i))
+                .unwrap()
+                .clone();
+            prob_s += prop * cond_prop;
+        }
 
-        let prob_h1 = e1 * e2 + e5 * e6;
-        let prob_h2 = e1 * e3 + e5 * e7;
-        let prob_h3 = 1.0 - prob_h1 - prob_h2;
-
-        (prob_h1, prob_h2, prob_h3)
+        prob_s
     }
 
-    fn find_prob_a(&self) -> (f64, f64) {
-        let e1 = self
-            .forward_prop
-            .edge_weight((1 - 1).into())
-            .unwrap()
-            .clone();
-        let e2 = self
-            .forward_prop
-            .edge_weight((2 - 1).into())
-            .unwrap()
-            .clone();
-        let e4 = self
-            .forward_prop
-            .edge_weight((4 - 1).into())
-            .unwrap()
-            .clone();
-        let e5 = self
-            .forward_prop
-            .edge_weight((5 - 1).into())
-            .unwrap()
-            .clone();
-        let e7 = self
-            .forward_prop
-            .edge_weight((7 - 1).into())
-            .unwrap()
-            .clone();
-        let e8 = self
-            .forward_prop
-            .edge_weight((8 - 1).into())
-            .unwrap()
-            .clone();
+    fn new_forward_tree(hypotheses: Vec<Hypothesis>) -> Graph<String, f64, Undirected> {
+        let mut f_tree = Graph::<String, f64, Undirected>::new_undirected();
+        let start_node = f_tree.add_node("Start".into()); //0 index of node is reserved for Start
+        for i in 0..hypotheses.len() {
+            //Creating hypotheses nodes and edges (prob)
+            let h_node = f_tree.add_node(hypotheses[i].name.clone());
+            f_tree.add_edge(start_node, h_node, hypotheses[i].prob);
+        }
+        for i in 0..hypotheses.len() {
+            //Creating evidence nodes and edges (e_cond_prob)
+            let s_node = f_tree.add_node(format!("{}_Success", hypotheses[i].name));
+            f_tree.add_edge(NodeIndex::new(i + 1), s_node, hypotheses[i].s_cond_prob);
+            let f_node = f_tree.add_node(format!("{}_Failure", hypotheses[i].name));
+            f_tree.add_edge(NodeIndex::new(i + 1), f_node, hypotheses[i].f_cond_prob);
+        }
 
-        let prob_a = e1 * e2 + e4 * e5 + e7 * e8;
-        (prob_a, 1.0 - prob_a)
+        f_tree
+    }
+
+    pub fn upt_forward_tree_pos(&mut self) {
+        for (e, i) in (2..(2 + self.h_num)).enumerate() {
+            let endpoints = self.forward_prop.edge_endpoints(EdgeIndex::new(e)).unwrap();
+            self.forward_prop.update_edge(endpoints.0, endpoints.1, self.backward_prop.edge_weight(EdgeIndex::new(i)).unwrap().to_owned());
+        }
+    }
+
+    pub fn upt_forward_tree_neg(&mut self) {
+        for (e, i) in ((2 + self.h_num)..(2 + self.h_num * 2)).enumerate() {
+            let endpoints = self.forward_prop.edge_endpoints(EdgeIndex::new(e)).unwrap();
+            self.forward_prop.update_edge(endpoints.0, endpoints.1, self.backward_prop.edge_weight(EdgeIndex::new(i)).unwrap().to_owned());
+        }
     }
 }
