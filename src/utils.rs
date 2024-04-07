@@ -22,13 +22,6 @@ pub fn find_eccentrities_dir(g: &mut Graph<String, i32>) {
             start.index() + 1,
             paths
         );
-        // println!(
-        //     "#{} From {:?} to {:?} - the shortest path: {:?}",
-        //     j + 1,
-        //     node_1,
-        //     node_2,
-        //     path
-        // );
 
         eccentricities.push(
             paths
@@ -64,13 +57,6 @@ pub fn find_eccentrities(g: &mut Graph<String, i32, Undirected>) {
             start.index() + 1,
             paths
         );
-        // println!(
-        //     "#{} From {:?} to {:?} - the shortest path: {:?}",
-        //     j + 1,
-        //     node_1,
-        //     node_2,
-        //     path
-        // );
 
         eccentricities.push(
             paths

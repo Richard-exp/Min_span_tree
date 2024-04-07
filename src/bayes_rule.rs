@@ -24,15 +24,17 @@ pub struct Hypothesis {
 
 impl Probability {
     pub fn new(hypotheses: Vec<Hypothesis>) -> Self {
-        Self {
+        let mut prob = Self {
             forward_prop: Probability::new_forward_tree(hypotheses.clone()),
             backward_prop: Graph::<String, f64, Undirected>::new_undirected(),
             h_num: hypotheses.len(),
             h_names: hypotheses.iter().map(|h| h.name.to_owned()).collect(),
-        }
+        };
+        prob.new_backward_tree();
+        prob
     }
 
-    pub fn new_backward_tree(&mut self) {
+    fn new_backward_tree(&mut self) {
         let prob_s = self.find_prob_s();
 
         let start_node = self.backward_prop.add_node("Start".into()); //0 index of node is reserved for Start
@@ -120,14 +122,91 @@ impl Probability {
     pub fn upt_forward_tree_pos(&mut self) {
         for (e, i) in (2..(2 + self.h_num)).enumerate() {
             let endpoints = self.forward_prop.edge_endpoints(EdgeIndex::new(e)).unwrap();
-            self.forward_prop.update_edge(endpoints.0, endpoints.1, self.backward_prop.edge_weight(EdgeIndex::new(i)).unwrap().to_owned());
+            self.forward_prop.update_edge(
+                endpoints.0,
+                endpoints.1,
+                self.backward_prop
+                    .edge_weight(EdgeIndex::new(i))
+                    .unwrap()
+                    .to_owned(),
+            );
         }
     }
 
     pub fn upt_forward_tree_neg(&mut self) {
         for (e, i) in ((2 + self.h_num)..(2 + self.h_num * 2)).enumerate() {
             let endpoints = self.forward_prop.edge_endpoints(EdgeIndex::new(e)).unwrap();
-            self.forward_prop.update_edge(endpoints.0, endpoints.1, self.backward_prop.edge_weight(EdgeIndex::new(i)).unwrap().to_owned());
+            self.forward_prop.update_edge(
+                endpoints.0,
+                endpoints.1,
+                self.backward_prop
+                    .edge_weight(EdgeIndex::new(i))
+                    .unwrap()
+                    .to_owned(),
+            );
+        }
+    }
+
+    pub fn upt_backward_tree(&mut self) {
+        let prob_s = self.find_prob_s();
+
+        let endpoints = self
+            .backward_prop
+            .edge_endpoints(EdgeIndex::new(0))
+            .unwrap();
+        self.backward_prop
+            .update_edge(endpoints.0, endpoints.1, prob_s);
+
+        let endpoints = self
+            .backward_prop
+            .edge_endpoints(EdgeIndex::new(1))
+            .unwrap();
+        self.backward_prop
+            .update_edge(endpoints.0, endpoints.1, 1.0 - prob_s);
+
+        let mut i_b = 2..(2 + self.h_num);
+        for (e, i_f) in ((self.h_num..(self.h_num * 3)).step_by(2)).enumerate() {
+            let prob = self
+                .forward_prop
+                .edge_weight(EdgeIndex::new(e))
+                .unwrap()
+                .clone();
+            let cond_prob = self
+                .forward_prop
+                .edge_weight(EdgeIndex::new(i_f))
+                .unwrap()
+                .clone();
+
+            let endpoints = self
+                .backward_prop
+                .edge_endpoints(EdgeIndex::new(i_b.next().unwrap()))
+                .unwrap();
+            self.backward_prop
+                .update_edge(endpoints.0, endpoints.1, (prob * cond_prob) / prob_s);
+        }
+
+        let mut i_b = (2 + self.h_num)..(2 + self.h_num * 2);
+        for (e, i_f) in ((self.h_num..(self.h_num * 3)).step_by(2)).enumerate() {
+            let prob = self
+                .forward_prop
+                .edge_weight(EdgeIndex::new(e))
+                .unwrap()
+                .clone();
+            let cond_prob = self
+                .forward_prop
+                .edge_weight(EdgeIndex::new(i_f + 1))
+                .unwrap()
+                .clone();
+
+            let endpoints = self
+                .backward_prop
+                .edge_endpoints(EdgeIndex::new(i_b.next().unwrap()))
+                .unwrap();
+            self.backward_prop.update_edge(
+                endpoints.0,
+                endpoints.1,
+                (prob * cond_prob) / (1.0 - prob_s),
+            );
         }
     }
 }
