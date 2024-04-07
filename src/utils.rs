@@ -1,4 +1,5 @@
 use petgraph::{
+    algo::dijkstra,
     graph::{Graph, NodeIndex},
     visit::depth_first_search,
     visit::{Control, DfsEvent},
@@ -7,75 +8,72 @@ use petgraph::{
 };
 
 pub fn find_eccentrities_dir(g: &mut Graph<String, i32>) {
-    let mut eccentricities: Vec<i32> = Vec::new();
+    let mut eccentricities: Vec<(String, i32)> = Vec::new();
 
     for i in 0..g.node_count() {
-        let node_1 = g
+        let start = g
             .node_indices()
             .find(|n| g[*n] == format!("{}", i + 1))
             .unwrap();
-        let mut paths: Vec<i32> = Vec::new();
 
-        for j in 0..g.node_count() {
-            let node_2 = g
-                .node_indices()
-                .find(|n| g[*n] == format!("{}", j + 1))
-                .unwrap();
-            let path = dfs_dir(g, node_1, node_2);
-            paths.push(path.len() as i32);
-            println!(
-                "#{} From {:?} to {:?} - the shortest path: {:?}",
-                j + 1,
-                node_1,
-                node_2,
-                path
-            );
-        }
-        eccentricities.push(paths.iter().cloned().max().unwrap());
-        println!();
+        let paths = dijkstra(&*g, start, None, |e| *e.weight());
+        println!(
+            "From {:?} to all other nodes: {:?}",
+            start.index() + 1,
+            paths
+        );
+
+        eccentricities.push(
+            paths
+                .iter()
+                .max_by_key(|(_, v)| *v)
+                .map(|(n, v)| (format!("Node: {}", (*n).index() + 1), *v))
+                .unwrap(),
+        );
     }
-    println!("{:?}", eccentricities);
-    println!("Radius: {}", eccentricities.iter().cloned().min().unwrap());
+    println!("\nEccentricities: {:?}", eccentricities);
     println!(
-        "Diameter: {}",
-        eccentricities.iter().cloned().max().unwrap()
+        "\nRadius: {:?}",
+        eccentricities.iter().min_by_key(|&(_, v)| v).unwrap()
+    );
+    println!(
+        "\nDiameter: {:?}",
+        eccentricities.iter().max_by_key(|&(_, v)| v).unwrap()
     );
 }
 
-
 pub fn find_eccentrities(g: &mut Graph<String, i32, Undirected>) {
-    let mut eccentricities: Vec<i32> = Vec::new();
+    let mut eccentricities: Vec<(String, i32)> = Vec::new();
 
     for i in 0..g.node_count() {
-        let node_1 = g
+        let start = g
             .node_indices()
             .find(|n| g[*n] == format!("{}", i + 1))
             .unwrap();
-        let mut paths: Vec<i32> = Vec::new();
 
-        for j in 0..g.node_count() {
-            let node_2 = g
-                .node_indices()
-                .find(|n| g[*n] == format!("{}", j + 1))
-                .unwrap();
-            let path = dfs(g, node_1, node_2);
-            paths.push(path.len() as i32);
-            println!(
-                "#{} From {:?} to {:?} - the shortest path: {:?}",
-                j + 1,
-                node_1,
-                node_2,
-                path
-            );
-        }
-        eccentricities.push(paths.iter().cloned().max().unwrap());
-        println!();
+        let paths = dijkstra(&*g, start, None, |e| *e.weight());
+        println!(
+            "From {:?} to all other nodes: {:?}",
+            start.index() + 1,
+            paths
+        );
+
+        eccentricities.push(
+            paths
+                .iter()
+                .max_by_key(|(_, v)| *v)
+                .map(|(n, v)| (format!("Node: {}", (*n).index() + 1), *v))
+                .unwrap(),
+        );
     }
-    println!("{:?}", eccentricities);
-    println!("Radius: {}", eccentricities.iter().cloned().min().unwrap());
+    println!("\nEccentricities: {:?}", eccentricities);
     println!(
-        "Diameter: {}",
-        eccentricities.iter().cloned().max().unwrap()
+        "\nRadius: {:?}",
+        eccentricities.iter().min_by_key(|&(_, v)| v).unwrap()
+    );
+    println!(
+        "\nDiameter: {:?}",
+        eccentricities.iter().max_by_key(|&(_, v)| v).unwrap()
     );
 }
 
@@ -157,7 +155,7 @@ pub fn calc_out_degrees_dir(g: &Graph<String, i32>) {
     println!("Total nodes out-degrees(+): {}\n", degrees);
 }
 
-pub fn calc_degrees(g: &Graph<String, i32, Undirected>) {
+pub fn calc_degrees(g: &Graph<String, f64, Undirected>) {
     let mut degrees = 0;
     for i in 0..g.node_count() {
         let node = g
@@ -166,7 +164,7 @@ pub fn calc_degrees(g: &Graph<String, i32, Undirected>) {
             .unwrap();
         let node_degree = g.neighbors(node).count();
         degrees = degrees + node_degree;
-        println!("#{} node has degree: {}\n", i + 1, node_degree);
+        println!("#{} node has degree: {}", i + 1, node_degree);
     }
     println!("Total nodes degree: {}\n", degrees);
 }
